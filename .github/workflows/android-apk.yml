@@ -22,6 +22,7 @@ jobs:
       - name: Find and extract ViralFlow ZIP
         run: |
           ZIP_FILE=$(find . -maxdepth 2 -type f -iname "*.zip" | head -n 1)
+
           echo "Found ZIP: $ZIP_FILE"
           test -n "$ZIP_FILE"
 
@@ -31,10 +32,11 @@ jobs:
           if [ -f "viralflow-source/package.json" ]; then
             PROJECT_DIR="viralflow-source"
           else
-            PROJECT_DIR=$(find viralflow-source -name package.json -not -path "*/node_modules/*" -printf '%h\n' | head -n 1)
+            PROJECT_DIR=$(find viralflow-source -name package.json -not -path "*/node_modules/*" -print | head -n 1 | xargs dirname)
           fi
 
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "Project directory: $PROJECT_DIR"
 
       - name: Install dependencies
         working-directory: ${{ env.PROJECT_DIR }}
@@ -44,9 +46,17 @@ jobs:
         working-directory: ${{ env.PROJECT_DIR }}
         run: npm run build
 
-      - name: Install Capacitor CLI
+      - name: Install Capacitor
         working-directory: ${{ env.PROJECT_DIR }}
-        run: npm install @capacitor/cli
+        run: |
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+
+      - name: Add Android platform
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
 
       - name: Sync Android
         working-directory: ${{ env.PROJECT_DIR }}
