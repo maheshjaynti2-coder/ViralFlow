@@ -1,0 +1,73 @@
+name: Build ViralFlow APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout ViralFlow
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Find and extract ViralFlow ZIP
+        run: |
+          ZIP_FILE=$(find . -maxdepth 2 -type f -iname "*.zip" | head -n 1)
+          echo "Found ZIP: $ZIP_FILE"
+          test -n "$ZIP_FILE"
+
+          mkdir -p viralflow-source
+          unzip -q "$ZIP_FILE" -d viralflow-source
+
+          if [ -f "viralflow-source/package.json" ]; then
+            PROJECT_DIR="viralflow-source"
+          else
+            PROJECT_DIR=$(find viralflow-source -name package.json -not -path "*/node_modules/*" -printf '%h\n' | head -n 1)
+          fi
+
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: npm install
+
+      - name: Build web app
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: npm run build
+
+      - name: Install Capacitor CLI
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: npm install @capacitor/cli
+
+      - name: Sync Android
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: npx cap sync android
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Build Android Debug APK
+        working-directory: ${{ env.PROJECT_DIR }}/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload ViralFlow APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ViralFlow-debug-APK
+          path: ${{ env.PROJECT_DIR }}/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
