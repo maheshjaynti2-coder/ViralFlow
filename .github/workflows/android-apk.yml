@@ -51,6 +51,21 @@ jobs:
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/android
 
+      - name: Prepare Capacitor config
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          if [ ! -d "android" ]; then
+            rm -f capacitor.config.ts
+
+            cat > capacitor.config.json <<'EOF'
+          {
+            "appId": "com.viralflow.app",
+            "appName": "ViralFlow",
+            "webDir": "dist"
+          }
+          EOF
+          fi
+
       - name: Add Android platform
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
